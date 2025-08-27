@@ -2,15 +2,17 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <title>Conferência AF x FP — Corrigido</title>
+  <title>Conferência AF x FP — Painel</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
-  <div class="max-w-6xl mx-auto">
+  <div class="max-w-7xl mx-auto">
+
     <header class="mb-6">
       <h1 class="text-3xl font-bold text-gray-800">Conferência AF x FP</h1>
-      <p class="text-sm text-gray-600 mt-1">Agora exibindo corretamente todas as siglas (AN, AC, AD, ...).</p>
+      <p class="text-sm text-gray-600 mt-1">Comparando arquivos da mesma entidade</p>
+      <p id="entidadeName" class="mt-2 text-lg font-medium text-gray-700"></p>
     </header>
 
     <div class="bg-white p-4 rounded-lg shadow mb-6">
@@ -32,219 +34,200 @@
       </div>
     </div>
 
-    <section id="tableWrap" class="bg-white rounded-lg shadow overflow-auto">
-      <!-- tabela será injetada aqui -->
-    </section>
+    <!-- totalizadores lado direito -->
+    <div id="totalsWrap" class="mb-4"></div>
+
+    <!-- tabela detalhada -->
+    <section id="tableWrap" class="bg-white rounded-lg shadow overflow-auto"></section>
   </div>
 
 <script>
-/* ---------- util CSV split (respeita aspas) ---------- */
-function splitCSVLine(line) {
-  const re = /("([^"]*(?:""[^"]*)*)"|[^,]*)(,|$)/g;
-  const fields = [];
-  let m;
-  while ((m = re.exec(line)) !== null && m[0] !== "") {
-    let val = m[1] || "";
-    // remove quotes e unescape ""
-    if (val.startsWith('"') && val.endsWith('"')) {
-      val = val.slice(1, -1).replace(/""/g, '"');
-    }
-    fields.push(val);
-    if (m[3] === "") break;
-  }
-  return fields;
+// ---------- dicionário de municípios ----------
+const municipios = { "002":"ABAIARA","003":"ACARAPE","004":"ACARAU","005":"ACOPIARA","006":"AIUABA",
+"007":"ALCANTARAS","008":"ALTANEIRA","009":"ALTO SANTO","010":"AMONTADA","011":"ANTONINA DO NORTE",
+"012":"APUIARES","013":"AQUIRAZ","014":"ARACATI","015":"ARACOIABA","016":"ARARIPE","017":"ARATUBA",
+"018":"ARNEIROZ","019":"ASSARE","020":"AURORA","021":"BAIXIO","022":"BANABUIU","023":"BARBALHA",
+"024":"BARREIRA","025":"BARRO","026":"BARROQUINHA","027":"BATURITE","028":"BEBERIBE","029":"BELA CRUZ",
+"030":"BOA VIAGEM","031":"BREJO SANTO","032":"CAMOCIM","033":"CAMPOS SALES","034":"CANINDE",
+"035":"CAPISTRANO","036":"CARIDADE","037":"CARIRE","038":"CARIRIACU","039":"CARIUS","040":"CARNAUBAL",
+"041":"CASCAVEL","042":"CATARINA","043":"CAUCAIA","044":"CEDRO","045":"CHAVAL","046":"CHOROZINHO",
+"047":"COREAU","048":"CRATEUS","049":"CRATO","050":"CROATA","051":"CRUZ","052":"DEPUTADO IRAPUAN PINHEIRO",
+"053":"ERERE","054":"EUSEBIO","055":"FARIAS BRITO","056":"FORQUILHA","057":"FORTALEZA","058":"FRECHEIRINHA",
+"059":"GENERAL SAMPAIO","060":"GRACA","061":"GRANJA","062":"GRANJEIRO","063":"GROAIRAS","064":"GUAIUBA",
+"065":"GUARACIABA DO NORTE","066":"GUARAMIRANGA","067":"HIDROLANDIA","068":"HORIZONTE","069":"IBARETAMA",
+"070":"IBIAPINA","071":"IBICUITINGA","072":"ICAPUI","073":"ICO","074":"IGUATU","075":"INDEPENDENCIA",
+"076":"IPAPORANGA","077":"IPAUMIRIM","078":"IPU","079":"IPUEIRAS","080":"IRACEMA","081":"IRAUCUBA",
+"082":"ITAICABA","083":"ITAPAJE","084":"ITAPIPOCA","085":"ITAPIUNA","086":"ITAREMA","087":"ITATIRA",
+"088":"JAGUARETAMA","089":"JAGUARIBARA","090":"JAGUARIBE","091":"JAGUARUANA","092":"JARDIM","093":"JATI",
+"094":"JUAZEIRO DO NORTE","095":"JUCAS","096":"LAVRAS DA MANGABEIRA","097":"LIMOEIRO DO NORTE","098":"MADALENA",
+"099":"MARACANAU","100":"MARANGUAPE","101":"MARCO","102":"MARTINOPOLE","103":"MASSAPE","104":"MAURITI",
+"105":"MERUOCA","106":"MILAGRES","107":"MILHA","108":"MIRAIMA","109":"MISSAO VELHA","110":"MUCAMBO",
+"111":"MOMBACA","112":"MONSENHOR TABOSA","113":"MORADA NOVA","114":"MORAUJO","115":"MORRINHOS","116":"MULUNGU",
+"117":"NOVA OLINDA","118":"NOVA RUSSAS","119":"NOVO ORIENTE","120":"OCARA","121":"OROS","122":"PACAJUS",
+"123":"PACATUBA","124":"PACOTI","125":"PACUJA","126":"PALHANO","127":"PALMACIA","128":"PARACURU","129":"PARAIPABA",
+"130":"PARAMBU","131":"PARAMOTI","132":"PEDRA BRANCA","133":"PENAFORTE","134":"PENTECOSTE","135":"PEREIRO",
+"136":"PINDORETAMA","137":"PIQUET CARNEIRO","138":"PIRES FERREIRA","139":"PORANGA","140":"PORTEIRAS",
+"141":"POTENGI","142":"POTIRETAMA","143":"QUITERIANOPOLIS","144":"QUIXADA","145":"QUIXELO","146":"QUIXERAMOBIM",
+"147":"QUIXERE","148":"REDENCAO","149":"RERIUTABA","150":"RUSSAS","151":"SABOEIRO","152":"SALITRE",
+"153":"SANTANA DO ACARAU","154":"SANTANA DO CARIRI","155":"SANTA QUITERIA","156":"SAO BENEDITO",
+"157":"SAO GONCALO DO AMARANTE","158":"SAO JOAO DO JAGUARIBE","159":"SAO LUIS DO CURU","160":"SENADOR POMPEU",
+"161":"SENADOR SA","162":"SOBRAL","163":"SOLONOPOLE","164":"TABULEIRO DO NORTE","165":"TAMBORIL",
+"166":"TARRAFAS","167":"TAUA","168":"TEJUCUOCA","169":"TIANGUA","170":"TRAIRI","171":"TURURU","172":"UBAJARA",
+"173":"UMARI","174":"UMIRIM","175":"URUBURETAMA","176":"URUOCA","177":"VARJOTA","178":"VARZEA ALEGRE",
+"179":"VICOSA DO CEARA","180":"ARARENDA","181":"CATUNDA","182":"CHORO","183":"FORTIM","184":"ITAITINGA",
+"185":"JIJOCA DE JERICOACOARA" };
+
+// ---------- util CSV split ----------
+function splitCSVLine(line){ 
+  return line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g).map(s=>s.replace(/^"|"$/g,''));
 }
 
-/* ---------- converte string numérica pra centavos (inteiro) ---------- */
-function toCents(raw) {
-  const s = String(raw || "").trim().replace(/"/g, "");
-  if (!s) return 0;
-  // Expect number format like 0000055050.87 or 5564.09
-  // Remove thousand separators if present (.,) — but inputs parecem usar ponto decimal.
-  const clean = s.replace(/\s/g, "");
-  const parts = clean.split(".");
-  const intPart = parseInt((parts[0] || "0").replace(/^0+(?=\d)|^$/, ""), 10) || 0;
-  const frac = (parts[1] || "00").padEnd(2, "0").slice(0,2);
-  const fracPart = parseInt(frac, 10) || 0;
-  return intPart * 100 + fracPart;
-}
+// ---------- conversão para centavos ----------
+function toCents(raw){ return Math.round(parseFloat(raw)*100); }
 
-/* ---------- formata centavos pra pt-BR ---------- */
-function formatCents(cents) {
-  return (cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+// ---------- formata para BR -->
+function formatCents(cents){ return (cents/100).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
-/* ---------- parse AF: soma por UNIDADE+SIGLA, apenas quando col15 == "O" ---------- */
-function parseAF(content) {
-  const lines = content.split(/\r?\n/).filter(l => l.trim() !== "");
-  const map = {}; // key: unidade-sigla => cents
-  for (const rawLine of lines) {
-    const cols = splitCSVLine(rawLine);
-    if (cols.length === 0) continue;
-    // indices: col4 -> cols[3], col5 -> cols[4], col7 -> cols[6], col14 -> cols[13], col15 -> cols[14]
-    const tipo = (cols[14] || "").trim();
-    if (tipo !== "O") continue;
-    const unidade = ((cols[3]||"").trim()).padStart(0, ""); // keep as-is (keeps leading zeros)
-    const parte = (cols[4]||"").trim();
-    const uni = (unidade + parte).trim();
-    const sigla = (cols[6]||"").trim();
-    const valCents = toCents(cols[13]);
-    const key = `${uni}-${sigla}`;
-    map[key] = (map[key] || 0) + valCents;
-  }
+// ---------- parse AF ----------
+function parseAF(content){
+  const lines=content.split(/\r?\n/);
+  const map={};
+  lines.forEach(line=>{
+    if(!line.trim()) return;
+    const cols=splitCSVLine(line);
+    if(cols[14]!=="O") return; // somente coluna 15 = "O"
+    const key=cols[3]+cols[4]+"-"+cols[6]; // col4+col5 + "-" + col7
+    const val=toCents(cols[13]); // coluna14
+    if(map[key]) map[key]+=val; else map[key]=val;
+  });
   return map;
 }
 
-/* ---------- parse FP: soma por UNIDADE+SIGLA (base) ---------- */
-function parseFP(content) {
-  const lines = content.split(/\r?\n/).filter(l => l.trim() !== "");
-  const map = {};
-  for (const rawLine of lines) {
-    const cols = splitCSVLine(rawLine);
-    if (cols.length === 0) continue;
-    const unidade = ((cols[3]||"").trim());
-    const parte = (cols[4]||"").trim();
-    const uni = (unidade + parte).trim();
-    const sigla = (cols[6]||"").trim();
-    const valCents = toCents(cols[9]);
-    const key = `${uni}-${sigla}`;
-    map[key] = (map[key] || 0) + valCents;
-  }
+// ---------- parse FP ----------
+function parseFP(content){
+  const lines=content.split(/\r?\n/);
+  const map={};
+  lines.forEach(line=>{
+    if(!line.trim()) return;
+    const cols=splitCSVLine(line);
+    const key=cols[3]+cols[4]+"-"+cols[6]; // col4+col5 + "-" + col7
+    const val=toCents(cols[9]); // coluna10
+    if(map[key]) map[key]+=val; else map[key]=val;
+  });
   return map;
 }
 
-/* ---------- monta tabela e controles ---------- */
-function compareAndRender(afMap, fpMap) {
-  // union das chaves (tudo que aparece em AF ou FP)
-  const allKeys = new Set([...Object.keys(fpMap), ...Object.keys(afMap)]);
-  const keys = Array.from(allKeys).sort((a,b) => {
-    const [ua, sa] = a.split("-");
-    const [ub, sb] = b.split("-");
-    const na = parseInt(ua, 10) || 0;
-    const nb = parseInt(ub, 10) || 0;
-    if (na !== nb) return na - nb;
-    return (sa || "").localeCompare(sb || "");
+// ---------- verifica entidade ----------
+function verificarEntidade(afContent,fpContent){
+  const entAF=splitCSVLine(afContent.split(/\r?\n/)[0])[1].trim();
+  const entFP=splitCSVLine(fpContent.split(/\r?\n/)[0])[1].trim();
+  if(entAF!==entFP){
+    alert(`ATENÇÃO: arquivos pertencem a entidades diferentes! AF=${entAF}, FP=${entFP}`);
+    return false;
+  }
+  const municipio=municipios[entAF]||"Código desconhecido";
+  document.getElementById('entidadeName').innerText=`Entidade: ${entAF} (${municipio})`;
+  return true;
+}
+
+// ---------- monta tabela ----------
+function compareAndRender(afMap,fpMap){
+  const allKeys=new Set([...Object.keys(fpMap), ...Object.keys(afMap)]);
+  const keys=Array.from(allKeys).sort();
+
+  let totalFP=0,totalAF=0;
+  keys.forEach(key=>{
+    totalFP+=(fpMap[key]||0);
+    totalAF+=(afMap[key]||0);
   });
+  const diffTotal = totalAF-totalFP;
 
-  let totalAF = 0, totalFP = 0;
-
-  let rowsHtml = keys.map(key => {
-    const [unidade, sigla] = key.split("-");
-    const af = afMap[key] || 0;
-    const fp = fpMap[key] || 0;
-    totalAF += af; totalFP += fp;
-    const diff = af - fp;
-    const equal = (af === fp);
-    return {
-      unidade,
-      sigla,
-      af,
-      fp,
-      diff,
-      equal
-    };
-  });
-
-  // build HTML
-  const container = document.getElementById("tableWrap");
-  let html = `
-    <div class="p-4">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h2 class="text-lg font-semibold text-gray-800">Resultado</h2>
-          <p class="text-sm text-gray-600">Base: FP — mostrando todas as combinações UNIDADE + SIGLA</p>
-        </div>
-        <div class="text-right text-sm text-gray-700">
-          <div>Total FP: <strong>${formatCents(totalFP)}</strong></div>
-          <div>Total AF: <strong>${formatCents(totalAF)}</strong></div>
-          <div>Diferença total: <strong>${formatCents(totalAF - totalFP)}</strong></div>
-        </div>
+  // totalizadores topo
+  const totalsHTML=`
+    <div class="bg-white p-4 rounded-lg shadow flex flex-col md:flex-row gap-6 justify-end mb-4">
+      <div class="text-center">
+        <p class="text-gray-500 font-medium">FP Total</p>
+        <p class="text-xl font-bold text-right">${formatCents(totalFP)}</p>
       </div>
-
-      <div class="overflow-x-auto">
-      <table class="min-w-full divide-y divide-gray-200">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Unidade</th>
-            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500">Sigla</th>
-            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500">FP</th>
-            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500">AF</th>
-            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500">Diferença (AF - FP)</th>
-            <th class="px-4 py-2 text-center text-xs font-medium text-gray-500">Status</th>
-          </tr>
-        </thead>
-        <tbody class="bg-white divide-y divide-gray-100">
-  `;
-
-  for (const r of rowsHtml) {
-    html += `
-      <tr class="${r.equal ? 'bg-green-50' : 'bg-red-50'} hover:bg-gray-50 transition">
-        <td class="px-4 py-2 text-sm text-gray-700">${r.unidade}</td>
-        <td class="px-4 py-2 text-sm text-gray-700">${r.sigla || ''}</td>
-        <td class="px-4 py-2 text-sm text-right text-gray-800">${formatCents(r.fp)}</td>
-        <td class="px-4 py-2 text-sm text-right text-gray-800">${formatCents(r.af)}</td>
-        <td class="px-4 py-2 text-sm text-right text-gray-800">${formatCents(r.diff)}</td>
-        <td class="px-4 py-2 text-sm text-center font-semibold ${r.equal ? 'text-green-700' : 'text-red-700'}">
-          ${r.equal ? 'Sem diferença' : 'Diferença'}
-        </td>
-      </tr>
-    `;
-  }
-
-  html += `
-        </tbody>
-      </table>
+      <div class="text-center">
+        <p class="text-gray-500 font-medium">AF Total</p>
+        <p class="text-xl font-bold text-right">${formatCents(totalAF)}</p>
+      </div>
+      <div class="text-center">
+        <p class="text-gray-500 font-medium">Diferença Total</p>
+        <p class="text-xl font-bold ${diffTotal!==0?'text-red-600':'text-green-600'}">${formatCents(Math.abs(diffTotal))}</p>
       </div>
     </div>
   `;
+  document.getElementById('totalsWrap').innerHTML=totalsHTML;
 
-  container.innerHTML = html;
+  let html=`<table class="min-w-full divide-y divide-gray-200">
+  <thead class="bg-gray-50">
+    <tr>
+      <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Unidade</th>
+      <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Sigla</th>
+      <th class="px-4 py-2 text-right text-sm font-medium text-gray-700">FP</th>
+      <th class="px-4 py-2 text-right text-sm font-medium text-gray-700">AF</th>
+      <th class="px-4 py-2 text-right text-sm font-medium text-gray-700">Diferença</th>
+    </tr>
+  </thead><tbody class="bg-white divide-y divide-gray-200">`;
 
-  // store last result for CSV download
-  window._lastCompare = { rows: rowsHtml, totalAF, totalFP };
+  keys.forEach(key=>{
+    const [uni,sigla]=key.split("-");
+    const fp=fpMap[key]||0;
+    const af=afMap[key]||0;
+    const diff=af-fp;
+    html+=`<tr class="${diff!==0?'bg-red-50':'bg-green-50'}">
+      <td class="px-4 py-2 text-sm">${uni}</td>
+      <td class="px-4 py-2 text-sm">${sigla}</td>
+      <td class="px-4 py-2 text-sm text-right">${formatCents(fp)}</td>
+      <td class="px-4 py-2 text-sm text-right">${formatCents(af)}</td>
+      <td class="px-4 py-2 text-sm text-right">${diff!==0?formatCents(diff):'OK'}</td>
+    </tr>`;
+  });
+
+  html+='</tbody></table>';
+  document.getElementById('tableWrap').innerHTML=html;
 }
 
-/* ---------- baixar CSV ---------- */
-function downloadCsv() {
-  const data = window._lastCompare;
-  if (!data) { alert("Execute a comparação primeiro."); return; }
-  const lines = [];
-  lines.push(['Unidade','Sigla','FP','AF','Diferença','Status'].join(';'));
-  for (const r of data.rows) {
-    lines.push([
-      r.unidade,
-      r.sigla || '',
-      formatCents(r.fp),
-      formatCents(r.af),
-      formatCents(r.diff),
-      r.equal ? 'Sem diferença' : 'Diferença'
-    ].join(';'));
-  }
-  const csv = lines.join("\n");
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `comparacao_af_fp_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
+// ---------- eventos ----------
+document.getElementById('compareBtn').addEventListener('click',()=>{
+  const afFile=document.getElementById('afFile').files[0];
+  const fpFile=document.getElementById('fpFile').files[0];
+  if(!afFile||!fpFile){ alert("Selecione ambos os arquivos."); return; }
 
-/* ---------- eventos botões ---------- */
-document.getElementById('compareBtn').addEventListener('click', async () => {
-  const afFile = document.getElementById('afFile').files[0];
-  const fpFile = document.getElementById('fpFile').files[0];
-  if (!afFile || !fpFile) { alert('Selecione os dois arquivos (.CPF).'); return; }
+  const readerAF=new FileReader();
+  const readerFP=new FileReader();
 
-  const [afContent, fpContent] = await Promise.all([afFile.text(), fpFile.text()]);
-  const afMap = parseAF(afContent);
-  const fpMap = parseFP(fpContent);
-  compareAndRender(afMap, fpMap);
+  readerAF.onload=function(eAF){
+    const afContent=eAF.target.result;
+    readerFP.onload=function(eFP){
+      const fpContent=eFP.target.result;
+      if(!verificarEntidade(afContent,fpContent)) return;
+      const afMap=parseAF(afContent);
+      const fpMap=parseFP(fpContent);
+      compareAndRender(afMap,fpMap);
+    };
+    readerFP.readAsText(fpFile,"UTF-8");
+  };
+  readerAF.readAsText(afFile,"UTF-8");
 });
 
-document.getElementById('downloadCsvBtn').addEventListener('click', downloadCsv);
+// ---------- download CSV ----------
+document.getElementById('downloadCsvBtn').addEventListener('click',()=>{
+  const table=document.querySelector('#tableWrap table');
+  if(!table){ alert("Nenhum dado para exportar."); return; }
+  let csv="Unidade,Sigla,FP,AF,Diferença\n";
+  table.querySelectorAll('tbody tr').forEach(row=>{
+    const cols=row.querySelectorAll('td');
+    csv+=[...cols].map(c=>c.innerText.replace(/\./g,'').replace(',','.')).join(",")+"\n";
+  });
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download="comparacao.csv"; a.click();
+  URL.revokeObjectURL(url);
+});
 </script>
 </body>
 </html>
